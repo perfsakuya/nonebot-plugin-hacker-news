@@ -56,6 +56,38 @@ __plugin_meta__ = PluginMetadata(
 
 plugin_config = Config.parse_obj(nonebot.get_driver().config.dict())
 
+def auto_start_broadcast():
+    if not plugin_config.hn_auto_broadcast:
+        return
+        
+    try:
+        scheduler = require("nonebot_plugin_apscheduler").scheduler
+        job = scheduler.get_job("hacker_news_auto_broadcast")
+        
+        if not job:
+            if plugin_config.hn_broadcast_mode == "cron":
+                cron_params = broadcaster.parse_cron_expression(plugin_config.hn_broadcast_cron)
+                scheduler.add_job(
+                    broadcaster.hacker_news_broadcast,
+                    "cron",
+                    id="hacker_news_auto_broadcast",
+                    **cron_params
+                )
+                print(f"启动定时播报: '{plugin_config.hn_broadcast_cron}'")
+            else:
+                scheduler.add_job(
+                    broadcaster.hacker_news_broadcast,
+                    "interval",
+                    seconds=plugin_config.hn_broadcast_interval,
+                    id="hacker_news_auto_broadcast"
+                )
+                print(f"启动定时播报: 每 {plugin_config.hn_broadcast_interval} 秒播报一次")
+    except Exception as e:
+        print(f"启动定时播报失败: {e}")
+
+# 尝试自动启动定时播报
+auto_start_broadcast()
+
 hacker_news = on_command("hn", aliases={"hackernews"}, priority=5, block=True)
 
 @hacker_news.handle()
@@ -225,8 +257,7 @@ async def handle_broadcast_control(event: MessageEvent, args: Message = CommandA
                 f"下次播报时间: {next_run}\n"
                 f"播报文章数量: {plugin_config.hn_broadcast_articles_count}\n"
                 f"播报群组数量: {len(plugin_config.hn_broadcast_groups)}\n"
-                f"播报头部格式: '{header_format}'\n"
-                f"头部示例: '{header_example}'"
+                f"播报头部格式: '{header_format}'"
             )
         else:
             await hacker_news_broadcast.finish("定时播报当前已关闭。")
