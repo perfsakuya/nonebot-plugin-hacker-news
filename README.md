@@ -2,6 +2,20 @@
 
 获取 Hacker News 热门文章的Nonebot插件,支持获取热门、最新、最佳文章以及文章详情和评论
 
+## 安装
+
+### 通过 pip 安装
+
+```bash
+pip install nonebot-plugin-hacker-news
+```
+
+### 通过 nb-cli 安装
+
+```bash
+nb plugin install nonebot-plugin-hacker-news
+```
+
 ## 基本命令
 
 ``` plaintext
@@ -44,3 +58,11 @@ hn_max_items_per_request = 10  # 单次请求最大获取条数
 hn_broadcast_groups = [123456789]  # 定时播报群组列表
 hn_broadcast_articles_count = 5  # 每次播报的文章数量
 ```
+
+## 依赖
+
+- Python 3.8+
+- nonebot2 >= 2.0.0rc3
+- nonebot-adapter-onebot >= 2.2.1
+- httpx >= 0.24.0
+- nonebot_plugin_apscheduler (用于定时播报功能)
