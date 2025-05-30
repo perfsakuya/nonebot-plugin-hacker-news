@@ -1,6 +1,6 @@
 # nonebot-plugin-hacker-news
 
-获取 Hacker News 热门文章的Nonebot插件,支持获取热门、最新、最佳文章以及文章详情和评论
+获取 Hacker News 热门文章的Nonebot插件, 支持获取热门、最新、最佳文章以及文章详情和评论
 
 ## 安装
 
@@ -37,11 +37,6 @@ nb plugin install nonebot-plugin-hacker-news
 /hn_broadcast interval [秒数]：设置播报间隔(最小60秒)
 /hn_broadcast cron [表达式]：设置每天固定时间播报，格式为"分 时 日 月 星期"
 ```
-
-cron示例：
-`/hn_broadcast cron '0 8 * * *'` 表示每天早上8点整
-`/hn_broadcast cron '0 8,20 * * *'` 表示每天早上8点和晚上8点
-`/hn_broadcast cron '0 */2 * * *'` 表示每2小时的整点
 
 ## 配置
 

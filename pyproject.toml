@@ -7,8 +7,8 @@ name = "nonebot-plugin-hacker-news"
 authors = [
     {name = "perfsakuya", email = "blujewel350@gmail.com"}
 ]
-description = "获取Hacker News文章并进行播报的NoneBot2插件"
-version = "0.1.0"
+description = "NoneBot2插件 - 获取Hacker News文章并进行播报"
+version = "0.1.1"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.8"
