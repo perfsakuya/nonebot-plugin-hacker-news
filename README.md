@@ -41,23 +41,15 @@ nb plugin install nonebot-plugin-hacker-news
 ## 配置
 
 ```python
-hn_api_base_url = "https://hacker-news.firebaseio.com/v0"
-hn_api_timeout = 10  # 请求超时时间，单位秒
+api_base_url = "https://hacker-news.firebaseio.com/v0"
+api_timeout = 10  # 请求超时时间，单位秒
 
-hn_auto_broadcast = False  # 是否开启定时播报
-hn_broadcast_mode = "interval"  # "interval"为间隔模式，"cron"为定时模式
-hn_broadcast_interval = 3600  # 定时播报间隔，单位秒（interval模式）
-hn_broadcast_cron = "0 8 * * *"  # cron表达式，默认每天早上八点（cron模式）
-hn_max_comments_depth = 3  # 获取评论的最大深度
-hn_max_items_per_request = 10  # 单次请求最大获取条数
-hn_broadcast_groups = [123456789]  # 定时播报群组列表
-hn_broadcast_articles_count = 5  # 每次播报的文章数量
+auto_broadcast = False  # 是否开启定时播报
+broadcast_mode = "interval"  # "interval"为间隔模式，"cron"为定时模式
+broadcast_interval = 3600  # 定时播报间隔，单位秒
+broadcast_cron = "0 8 * * *"  # cron表达式，默认每天早上八点
+max_comments_depth = 3  # 获取评论的最大深度
+max_items_per_request = 10  # 单次请求最大获取条数
+broadcast_groups = [123456789]  # 定时播报群组列表
+broadcast_articles_count = 5  # 每次播报的文章数量
 ```
-
-## 依赖
-
-- Python 3.8+
-- nonebot2 >= 2.0.0rc3
-- nonebot-adapter-onebot >= 2.2.1
-- httpx >= 0.24.0
-- nonebot_plugin_apscheduler (用于定时播报功能)

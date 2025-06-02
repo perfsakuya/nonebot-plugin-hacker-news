@@ -6,7 +6,7 @@ from typing import Dict, List, Set, Union
 from datetime import datetime
 import re
 
-from .config import Config
+from . import plugin_config
 from .data_source import get_top_stories, format_item
 
 def parse_cron_expression(cron_expr: str) -> Dict[str, str]:
@@ -23,30 +23,28 @@ def parse_cron_expression(cron_expr: str) -> Dict[str, str]:
         "day_of_week": parts[4]
     }
 
-try:
-    scheduler = require("nonebot_plugin_apscheduler").scheduler
-except Exception as e:
-    scheduler = None
-    nonebot.logger.warning(f"apscheduler导入失败，将不会启用自动播报: {e}")
-
-plugin_config = Config.parse_obj(nonebot.get_driver().config.dict())
+scheduler = require("nonebot_plugin_apscheduler").scheduler
 
 broadcasted_ids: Set[int] = set()
 
 async def hacker_news_broadcast():
     global broadcasted_ids
     
-    stories = await get_top_stories(plugin_config.hn_broadcast_articles_count)
+    stories = await get_top_stories(plugin_config.broadcast_articles_count)
     if not stories:
         nonebot.logger.warning("获取热门文章失败，本次播报取消")
         return
     
-    # 过滤已经播报过的文章
     new_stories = [story for story in stories if story["id"] not in broadcasted_ids]
     if not new_stories:
         nonebot.logger.info("没有新的热门文章，本次播报取消")
         return
     
+    group_list = plugin_config.broadcast_groups
+    if not group_list:
+        nonebot.logger.info("播报群组列表为空，无法进行播报")
+        return
+
     # 更新已播报ID集合（保留最近100个）
     new_ids = [story["id"] for story in new_stories]
     broadcasted_ids.update(new_ids)
@@ -54,7 +52,7 @@ async def hacker_news_broadcast():
         broadcasted_ids = set(list(broadcasted_ids)[-100:])
     
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    header_format = getattr(plugin_config, "hn_broadcast_header_format", "[BROADCAST] {time} Hacker News Update")
+    header_format = plugin_config.broadcast_header_format
     message = f"{header_format.format(time=current_time)}\n\n"
     message += "\n\n".join([format_item(story) for story in new_stories])
     
@@ -64,7 +62,7 @@ async def hacker_news_broadcast():
         return
     
     for bot_id, bot in bot_list.items():
-        group_list = getattr(plugin_config, "hn_broadcast_groups", [])
+        group_list = plugin_config.broadcast_groups
         
         for group_id in group_list:
             try:

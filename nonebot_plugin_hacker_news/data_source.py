@@ -4,15 +4,14 @@ import nonebot
 from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime
 
-from .config import Config
-plugin_config = Config.parse_obj(nonebot.get_driver().config.dict())
-BASE_URL = plugin_config.hn_api_base_url
+from . import plugin_config
+BASE_URL = plugin_config.api_base_url
 
 # 获取前N条热门文章
 async def get_top_stories(limit: int = 5) -> List[Dict[str, Any]]:
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{BASE_URL}/topstories.json", timeout=plugin_config.hn_api_timeout)
+            response = await client.get(f"{BASE_URL}/topstories.json", timeout=plugin_config.api_timeout)
             response.raise_for_status()
             story_ids = response.json()[:limit]
             
@@ -24,14 +23,14 @@ async def get_top_stories(limit: int = 5) -> List[Dict[str, Any]]:
             
             return stories
         except Exception as e:
-            print(f"Error fetching top stories: {e}")
+            nonebot.logger.error(f"Error fetching top stories: {e}")
             return []
 
 # 获取前N条最新文章
 async def get_new_stories(limit: int = 5) -> List[Dict[str, Any]]:
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{BASE_URL}/newstories.json", timeout=plugin_config.hn_api_timeout)
+            response = await client.get(f"{BASE_URL}/newstories.json", timeout=plugin_config.api_timeout)
             response.raise_for_status()
             story_ids = response.json()[:limit]
             
@@ -43,14 +42,14 @@ async def get_new_stories(limit: int = 5) -> List[Dict[str, Any]]:
             
             return stories
         except Exception as e:
-            print(f"Error fetching new stories: {e}")
+            nonebot.logger.error(f"Error fetching new stories: {e}")
             return []
 
 # 获取前N条最佳文章
 async def get_best_stories(limit: int = 5) -> List[Dict[str, Any]]:
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{BASE_URL}/beststories.json", timeout=plugin_config.hn_api_timeout)
+            response = await client.get(f"{BASE_URL}/beststories.json", timeout=plugin_config.api_timeout)
             response.raise_for_status()
             story_ids = response.json()[:limit]
             
@@ -62,18 +61,18 @@ async def get_best_stories(limit: int = 5) -> List[Dict[str, Any]]:
             
             return stories
         except Exception as e:
-            print(f"Error fetching best stories: {e}")
+            nonebot.logger.error(f"Error fetching best stories: {e}")
             return []
 
 # 获取特定ID的项目详情
 async def get_item_details(item_id: int) -> Optional[Dict[str, Any]]:
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{BASE_URL}/item/{item_id}.json", timeout=plugin_config.hn_api_timeout)
+            response = await client.get(f"{BASE_URL}/item/{item_id}.json", timeout=plugin_config.api_timeout)
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            print(f"Error fetching item {item_id}: {e}")
+            nonebot.logger.error(f"Error fetching item {item_id}: {e}")
             return None
 
 # 获取文章及其评论

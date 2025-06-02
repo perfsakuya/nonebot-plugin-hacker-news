@@ -6,12 +6,14 @@ import re
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union, Any
 
-from nonebot import on_command, require
+from nonebot import on_command, require, get_plugin_config
 from nonebot.adapters.onebot.v11 import Message, MessageSegment, MessageEvent
 from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
 
 from .config import Config
+plugin_config = get_plugin_config(Config)
+
 from .data_source import (
     get_top_stories,
     get_new_stories,
@@ -54,38 +56,37 @@ __plugin_meta__ = PluginMetadata(
     supported_adapters={"~onebot.v11"},
 )
 
-plugin_config = Config.parse_obj(nonebot.get_driver().config.dict())
-
 def auto_start_broadcast():
-    if not plugin_config.hn_auto_broadcast:
+    if not plugin_config.auto_broadcast:
         return
         
     try:
         scheduler = require("nonebot_plugin_apscheduler").scheduler
         job = scheduler.get_job("hacker_news_auto_broadcast")
-        
-        if not job:
-            if plugin_config.hn_broadcast_mode == "cron":
-                cron_params = broadcaster.parse_cron_expression(plugin_config.hn_broadcast_cron)
-                scheduler.add_job(
-                    broadcaster.hacker_news_broadcast,
-                    "cron",
-                    id="hacker_news_auto_broadcast",
-                    **cron_params
-                )
-                print(f"启动定时播报: '{plugin_config.hn_broadcast_cron}'")
-            else:
-                scheduler.add_job(
-                    broadcaster.hacker_news_broadcast,
-                    "interval",
-                    seconds=plugin_config.hn_broadcast_interval,
-                    id="hacker_news_auto_broadcast"
-                )
-                print(f"启动定时播报: 每 {plugin_config.hn_broadcast_interval} 秒播报一次")
-    except Exception as e:
-        print(f"启动定时播报失败: {e}")
 
-# 尝试自动启动定时播报
+        if job:
+            return
+
+        if plugin_config.broadcast_mode == "cron":
+            cron_params = broadcaster.parse_cron_expression(plugin_config.broadcast_cron)
+            scheduler.add_job(
+                broadcaster.hacker_news_broadcast,
+                "cron",
+                id="hacker_news_auto_broadcast",
+                **cron_params
+            )
+            nonebot.logger.info(f"启动定时播报: '{plugin_config.broadcast_cron}'")
+        else:
+            scheduler.add_job(
+                broadcaster.hacker_news_broadcast,
+                "interval",
+                seconds=plugin_config.broadcast_interval,
+                id="hacker_news_auto_broadcast"
+            )
+            nonebot.logger.info(f"启动定时播报: 每 {plugin_config.broadcast_interval} 秒播报一次")
+    except Exception as e:
+        nonebot.logger.error(f"启动定时播报失败: {e}")
+
 auto_start_broadcast()
 
 hacker_news = on_command("hn", aliases={"hackernews"}, priority=5, block=True)
@@ -183,51 +184,32 @@ hacker_news_broadcast = on_command("hn_broadcast", aliases={"hn广播"}, priorit
 
 @hacker_news_broadcast.handle()
 async def handle_broadcast_control(event: MessageEvent, args: Message = CommandArg()):
-    # 导入scheduler
-    try:
-        scheduler = require("nonebot_plugin_apscheduler").scheduler
-    except Exception as e:
-        await hacker_news_broadcast.finish("apscheduler未安装或加载失败，无法使用定时播报。")
-        return
-    
-    arg_text = args.extract_plain_text().strip().lower()
-    
-    # 开启定时播报
+    scheduler = require("nonebot_plugin_apscheduler").scheduler
+    arg_text = args.extract_plain_text().strip().lower() 
     if arg_text == "on" or arg_text == "开启":
         job = scheduler.get_job("hacker_news_auto_broadcast")
         if job:
             await hacker_news_broadcast.finish("定时播报已经处于开启状态！")
+
+        if plugin_config.broadcast_mode == "cron":
+            # 使用cron模式
+            cron_params = broadcaster.parse_cron_expression(plugin_config.broadcast_cron)
+            scheduler.add_job(
+                broadcaster.hacker_news_broadcast,
+                "cron",
+                id="hacker_news_auto_broadcast",
+                **cron_params
+            )
+            await hacker_news_broadcast.finish(f"定时播报已开启！使用定时模式，cron表达式: '{plugin_config.broadcast_cron}'")
         else:
-            import os
-            from importlib import import_module
-            
-            try:
-                broadcast_module = import_module('.broadcaster', package='nonebot_plugin_hacker_news')
-                
-                # 根据播报模式选择合适的调度方式
-                if plugin_config.hn_broadcast_mode == "cron":
-                    # 使用cron模式
-                    cron_params = broadcast_module.parse_cron_expression(plugin_config.hn_broadcast_cron)
-                    scheduler.add_job(
-                        broadcast_module.hacker_news_broadcast,
-                        "cron",
-                        id="hacker_news_auto_broadcast",
-                        **cron_params
-                    )
-                    await hacker_news_broadcast.send(f"定时播报已开启！使用定时模式，cron表达式: '{plugin_config.hn_broadcast_cron}'")
-                    return
-                else:
-                    # 使用间隔模式
-                    scheduler.add_job(
-                        broadcast_module.hacker_news_broadcast,
-                        "interval",
-                        seconds=plugin_config.hn_broadcast_interval,
-                        id="hacker_news_auto_broadcast"
-                    )
-                    await hacker_news_broadcast.send(f"定时播报已开启！使用间隔模式，每 {plugin_config.hn_broadcast_interval} 秒播报一次")
-                    return
-            except Exception as e:
-                await hacker_news_broadcast.finish(f"开启定时播报失败: {e}")
+            # 使用间隔模式
+            scheduler.add_job(
+                broadcaster.hacker_news_broadcast,
+                "interval",
+                seconds=plugin_config.broadcast_interval,
+                id="hacker_news_auto_broadcast"
+            )
+            await hacker_news_broadcast.finish(f"定时播报已开启！使用间隔模式，每 {plugin_config.broadcast_interval} 秒播报一次")
     
     # 关闭定时播报
     elif arg_text == "off" or arg_text == "关闭":
@@ -243,20 +225,19 @@ async def handle_broadcast_control(event: MessageEvent, args: Message = CommandA
         job = scheduler.get_job("hacker_news_auto_broadcast")
         if job:
             next_run = job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
-            mode = "定时模式" if plugin_config.hn_broadcast_mode == "cron" else "间隔模式"
-            mode_detail = f"cron表达式: '{plugin_config.hn_broadcast_cron}'" if plugin_config.hn_broadcast_mode == "cron" else f"间隔: {plugin_config.hn_broadcast_interval} 秒"
+            mode = "定时模式" if plugin_config.broadcast_mode == "cron" else "间隔模式"
+            mode_detail = f"cron表达式: '{plugin_config.broadcast_cron}'" if plugin_config.broadcast_mode == "cron" else f"间隔: {plugin_config.broadcast_interval} 秒"
             
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            header_format = plugin_config.hn_broadcast_header_format
-            header_example = header_format.format(time=current_time)
+            header_format = plugin_config.broadcast_header_format
             
             await hacker_news_broadcast.finish(
                 f"[STATUS] 定时播报已开启\n"
                 f"模式: {mode}\n"
                 f"设置: {mode_detail}\n"
                 f"下次播报时间: {next_run}\n"
-                f"播报文章数量: {plugin_config.hn_broadcast_articles_count}\n"
-                f"播报群组数量: {len(plugin_config.hn_broadcast_groups)}\n"
+                f"播报文章数量: {plugin_config.broadcast_articles_count}\n"
+                f"播报群组数量: {len(plugin_config.broadcast_groups)}\n"
                 f"播报头部格式: '{header_format}'"
             )
         else:
@@ -275,8 +256,8 @@ async def handle_broadcast_control(event: MessageEvent, args: Message = CommandA
             return
         
         # 更新配置
-        plugin_config.hn_broadcast_interval = interval
-        plugin_config.hn_broadcast_mode = "interval"
+        plugin_config.broadcast_interval = interval
+        plugin_config.broadcast_mode = "interval"
         
         # 重新设置任务间隔
         job = scheduler.get_job("hacker_news_auto_broadcast")
@@ -298,16 +279,13 @@ async def handle_broadcast_control(event: MessageEvent, args: Message = CommandA
             await hacker_news_broadcast.finish("cron表达式格式错误，正确格式为: '分 时 日 月 星期'，例如 '0 8 * * *' 表示每天早上8点")
             return
         
-        # 导入broadcaster模块
-        from .broadcaster import parse_cron_expression
-        
         try:
             # 测试cron表达式是否有效
-            cron_params = parse_cron_expression(cron_expr)
+            cron_params = broadcaster.parse_cron_expression(cron_expr)
             
             # 更新配置
-            plugin_config.hn_broadcast_cron = cron_expr
-            plugin_config.hn_broadcast_mode = "cron"
+            plugin_config.broadcast_cron = cron_expr
+            plugin_config.broadcast_mode = "cron"
             
             # 重新设置定时任务
             job = scheduler.get_job("hacker_news_auto_broadcast")
@@ -328,11 +306,11 @@ async def handle_broadcast_control(event: MessageEvent, args: Message = CommandA
         
         mode = parts[1]
         if mode in ["cron", "定时"]:
-            plugin_config.hn_broadcast_mode = "cron"
-            await hacker_news_broadcast.finish(f"定时播报模式已设置为定时模式(cron)，将按照 '{plugin_config.hn_broadcast_cron}' 进行播报。")
+            plugin_config.broadcast_mode = "cron"
+            await hacker_news_broadcast.finish(f"定时播报模式已设置为定时模式，将按照 '{plugin_config.broadcast_cron}' 进行播报。")
         else:
-            plugin_config.hn_broadcast_mode = "interval"
-            await hacker_news_broadcast.finish(f"定时播报模式已设置为间隔模式(interval)，将每隔 {plugin_config.hn_broadcast_interval} 秒进行播报。")
+            plugin_config.broadcast_mode = "interval"
+            await hacker_news_broadcast.finish(f"定时播报模式已设置为间隔模式，将每隔 {plugin_config.broadcast_interval} 秒进行播报。")
             
     # 设置播报消息头部格式
     elif arg_text.startswith("header ") or arg_text.startswith("头部 "):
@@ -342,12 +320,8 @@ async def handle_broadcast_control(event: MessageEvent, args: Message = CommandA
             return
         
         header_format = parts[1].strip().strip("'").strip('"')
-        # 检查格式字符串是否包含{time}占位符
-        if "{time}" not in header_format:
-            await hacker_news_broadcast.send("字符串中没有包含{time}占位符，播报消息头部不会显示时间。")
-        
-        # 更新配置
-        plugin_config.hn_broadcast_header_format = header_format
+
+        plugin_config.broadcast_header_format = header_format
         
         # 提供一个当前时间的示例，展示效果
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
